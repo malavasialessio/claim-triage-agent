@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claim Triage Agent — Claude Code Hackathon</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3e;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --accent3: #c084fc;
+    --green: #10b981;
+    --orange: #f59e0b;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --dim: #64748b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── Slides ── */
+  .deck { width: 100vw; height: 100vh; position: relative; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 52px 72px;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity .4s ease, transform .4s ease;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .slide.active  { opacity: 1; transform: translateX(0); pointer-events: all; }
+  .slide.exit    { opacity: 0; transform: translateX(-60px); }
+
+  /* ── Chrome ── */
+  #progress {
+    position: fixed; bottom: 0; left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent3));
+    transition: width .4s ease;
+    z-index: 100;
+  }
+  #counter {
+    position: fixed; bottom: 18px; right: 26px;
+    font-size: 12px; color: var(--dim);
+    z-index: 100;
+  }
+  #hint {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: var(--dim);
+    z-index: 100;
+  }
+
+  /* ── Typography ── */
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent3); margin-bottom: 10px;
+  }
+  h1 { font-size: clamp(40px, 5.5vw, 68px); font-weight: 800; line-height: 1.04; letter-spacing: -.03em; }
+  h2 { font-size: clamp(26px, 3.2vw, 44px); font-weight: 700; letter-spacing: -.02em; margin-bottom: 28px; }
+  h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  p, li { font-size: 15px; line-height: 1.65; color: var(--muted); }
+
+  .grad {
+    background: linear-gradient(135deg, #c084fc 0%, #7c3aed 50%, #3b82f6 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .lead { font-size: clamp(15px, 1.7vw, 20px); color: var(--muted); line-height: 1.6; max-width: 640px; margin-top: 18px; }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; }
+  .card-l { border-left: 3px solid var(--accent); }
+  .card-green  { border-left: 3px solid var(--green); }
+  .card-orange { border-left: 3px solid var(--orange); }
+  .card-red    { border-left: 3px solid var(--red); }
+  .card-blue   { border-left: 3px solid var(--blue); }
+
+  /* ── Grids ── */
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+
+  /* ── Tags ── */
+  .tag {
+    display: inline-block; border-radius: 999px; font-size: 10px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; padding: 3px 10px;
+    background: rgba(124,58,237,.18); border: 1px solid rgba(124,58,237,.4); color: var(--accent3);
+  }
+  .tg { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.4);  color: #6ee7b7; }
+  .to { background: rgba(245,158,11,.15); border-color: rgba(245,158,11,.4);  color: #fcd34d; }
+  .tr { background: rgba(239,68,68,.15);  border-color: rgba(239,68,68,.4);   color: #fca5a5; }
+  .tb { background: rgba(59,130,246,.15); border-color: rgba(59,130,246,.4);  color: #93c5fd; }
+
+  /* ── Code ── */
+  .code {
+    background: #0d0d14; border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 18px; font-family: 'Cascadia Code','Fira Code',monospace;
+    font-size: 12px; line-height: 1.65; color: #e2e8f0;
+  }
+  .kw { color: #c084fc; } .str { color: #86efac; } .cm { color: #4a5568; font-style:italic; }
+
+  /* ── Stat ── */
+  .stat { text-align: center; padding: 18px 14px; }
+  .stat .n {
+    font-size: clamp(28px,3.5vw,48px); font-weight: 800; line-height: 1;
+    background: linear-gradient(135deg, #c084fc, #7c3aed);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .stat .l { font-size: 11px; color: var(--dim); margin-top: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+
+  /* ── Divider ── */
+  .div { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* ── Lists ── */
+  ul { list-style: none; padding: 0; }
+  ul li { padding: 4px 0 4px 18px; position: relative; }
+  ul li::before { content: '▸'; position: absolute; left: 0; color: var(--accent3); font-size: 10px; top: 7px; }
+
+  /* ── Flow ── */
+  .flow { display: flex; align-items: center; gap: 0; }
+  .fstep {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; text-align: center; flex: 1;
+  }
+  .fstep .ico { font-size: 20px; margin-bottom: 3px; }
+  .fstep .lbl { font-size: 11px; color: var(--muted); font-weight: 600; line-height: 1.3; }
+  .farr { color: var(--accent3); font-size: 16px; padding: 0 5px; flex-shrink: 0; }
+
+  /* ── Metric bar ── */
+  .mrow { display: flex; align-items: center; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .mrow:last-child { border: none; }
+  .mrow .mn { flex: 1; font-size: 13px; color: var(--muted); }
+  .mrow .mb { flex: 2; height: 5px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+  .mrow .mf { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent3)); }
+  .mrow .mv { font-size: 13px; font-weight: 700; color: var(--text); width: 44px; text-align: right; }
+
+  /* ── Challenge rows ── */
+  .crow { display: flex; align-items: center; gap: 14px; padding: 11px 18px; }
+
+  /* ── Slide-specific tones ── */
+  #s1 { background: radial-gradient(ellipse 55% 65% at 70% 50%, rgba(124,58,237,.12) 0%, transparent 70%); justify-content: center; }
+  #s5 { background: radial-gradient(ellipse 50% 60% at 90% 30%, rgba(16,185,129,.05) 0%, transparent 60%); }
+  #s7 { background: radial-gradient(ellipse 50% 60% at 10% 50%, rgba(239,68,68,.05) 0%, transparent 60%); }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+<!-- ═══════════════════════════════════
+     1 · TITLE
+═══════════════════════════════════ -->
+<div class="slide active" id="s1">
+  <div style="display:flex; gap:10px; margin-bottom:28px">
+    <span class="tag">Scenario 5 — Agentic Solution</span>
+    <span class="tag tb">Claude Agent SDK</span>
+  </div>
+
+  <h1 class="grad">Claim Triage<br>Agent</h1>
+
+  <p class="lead">
+    An AI system that reads customer complaints from an electric utility,
+    classifies them by priority and routes them to the right team —
+    and gets more accurate with every operator correction.
+  </p>
+
+  <div class="div" style="max-width:360px; margin-top:32px; margin-bottom:0"></div>
+
+  <div style="display:flex; gap:32px; margin-top:24px">
+    <div>
+      <div style="font-size:14px; font-weight:600">Alessio Malavasi</div>
+      <div style="font-size:12px; color:var(--dim)">Architect · Dev · PM</div>
+    </div>
+    <div>
+      <div style="font-size:14px; font-weight:600">Ludovica Santinelli</div>
+      <div style="font-size:12px; color:var(--dim)">Architect · Dev · Quality</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     2 · THE PROBLEM
+═══════════════════════════════════ -->
+<div class="slide" id="s2">
+  <div class="eyebrow">The Problem</div>
+  <h2>200 emails a day.<br>Triaged by hand.</h2>
+
+  <div class="g3" style="margin-bottom:22px">
+    <div class="card card-red">
+      <div class="tag tr" style="margin-bottom:10px">Pain point</div>
+      <h3>Manual triage</h3>
+      <p>Every email read, classified and assigned one by one by the operator — every day, every shift.</p>
+    </div>
+    <div class="card card-orange">
+      <div class="tag to" style="margin-bottom:10px">Risk</div>
+      <h3>Wrong priority = customers left in the dark</h3>
+      <p>A misclassified outage waits hours instead of getting Emergency Dispatch within minutes.</p>
+    </div>
+    <div class="card card-blue">
+      <div class="tag tb" style="margin-bottom:10px">Opportunity</div>
+      <h3>8 repeatable categories</h3>
+      <p>Billing, outages, contracts, new connections — structured enough for an agent, nuanced enough to need a good one.</p>
+    </div>
+  </div>
+
+  <div class="g4">
+    <div class="stat card"><div class="n">200+</div><div class="l">Emails / day</div></div>
+    <div class="stat card"><div class="n">8</div><div class="l">Categories</div></div>
+    <div class="stat card"><div class="n">5</div><div class="l">Priority levels</div></div>
+    <div class="stat card"><div class="n" style="font-size:30px">P1</div><div class="l">Emergencies always human</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     3 · BEFORE & AFTER
+═══════════════════════════════════ -->
+<div class="slide" id="s3">
+  <div class="eyebrow">Before & After</div>
+  <h2>From manual triage to autonomous agent</h2>
+
+  <div style="display:grid; grid-template-columns:1fr 48px 1fr; gap:0; height:calc(100% - 110px); align-items:stretch">
+
+    <!-- BEFORE -->
+    <div style="background:rgba(239,68,68,.05); border:1px solid rgba(239,68,68,.2); border-radius:14px; padding:22px 24px; display:flex; flex-direction:column; gap:11px">
+      <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#fca5a5; margin-bottom:4px">⬛ Before</div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">📬</span>
+        <div><strong style="font-size:13px;color:var(--text)">200 emails read by hand</strong><p style="font-size:12px;margin-top:2px">Every email opened, read and classified individually by the operator.</p></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">⏱️</span>
+        <div><strong style="font-size:13px;color:var(--text)">3–5 minutes per email</strong><p style="font-size:12px;margin-top:2px">Up to 15+ hours/week of pure triage, taken away from actual case management.</p></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">❌</span>
+        <div><strong style="font-size:13px;color:var(--text)">Priority errors = delayed outage response</strong><p style="font-size:12px;margin-top:2px">An outage classified as a billing complaint waits hours instead of minutes.</p></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">🔁</span>
+        <div><strong style="font-size:13px;color:var(--text)">The same mistakes repeat</strong><p style="font-size:12px;margin-top:2px">No mechanism to learn from past mistakes or previous shifts.</p></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">📊</span>
+        <div><strong style="font-size:13px;color:var(--text)">Zero performance visibility</strong><p style="font-size:12px;margin-top:2px">No way to measure how many tickets were classified correctly.</p></div>
+      </div>
+    </div>
+
+    <!-- Centre divider -->
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px; padding: 0 4px">
+      <div style="flex:1; width:1px; background:var(--border)"></div>
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">→</div>
+      <div style="flex:1; width:1px; background:var(--border)"></div>
+    </div>
+
+    <!-- AFTER -->
+    <div style="background:rgba(16,185,129,.05); border:1px solid rgba(16,185,129,.2); border-radius:14px; padding:22px 24px; display:flex; flex-direction:column; gap:11px">
+      <div style="font-size:11px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#6ee7b7; margin-bottom:4px">✅ After</div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">⚡</span>
+        <div><strong style="font-size:13px;color:var(--text)">Classification in seconds</strong><p style="font-size:12px;margin-top:2px">The agent reads, classifies and assigns every email automatically, 24/7.</p></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">🎯</span>
+        <div><strong style="font-size:13px;color:var(--text)">Operator steps in only where needed</strong><p style="font-size:12px;margin-top:2px">Low confidence or emergencies → automatic human review queue.</p></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">🛡️</span>
+        <div><strong style="font-size:13px;color:var(--text)">Emergencies always protected</strong><p style="font-size:12px;margin-top:2px">A deterministic guardrail blocks automatic routing for any emergency — no exceptions.</p></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">📈</span>
+        <div><strong style="font-size:13px;color:var(--text)">Self-improving</strong><p style="font-size:12px;margin-top:2px">Every operator correction becomes a learning example. Accuracy grows over time.</p></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span style="font-size:18px;flex-shrink:0">📊</span>
+        <div><strong style="font-size:13px;color:var(--text)">Real-time metrics</strong><p style="font-size:12px;margin-top:2px">Dashboard with per-category accuracy, pending queue and historical performance trend.</p></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     4 · THE OPERATOR EXPERIENCE
+═══════════════════════════════════ -->
+<div class="slide" id="s4">
+  <div class="eyebrow">The Operator Experience</div>
+  <h2>From email to routing, effortlessly</h2>
+
+  <div class="g2" style="height: calc(100% - 110px)">
+
+    <!-- Left: narrative steps -->
+    <div style="display:flex; flex-direction:column; gap:12px; justify-content:center">
+      <div class="card card-blue" style="display:flex;gap:14px;align-items:flex-start">
+        <span style="font-size:22px;flex-shrink:0">1</span>
+        <div>
+          <h3>The email arrives</h3>
+          <p style="font-size:13px">"Good evening, I've had no power since last night. I have young children at home."</p>
+        </div>
+      </div>
+      <div class="card card-l" style="display:flex;gap:14px;align-items:flex-start">
+        <span style="font-size:22px;flex-shrink:0">2</span>
+        <div>
+          <h3>The agent classifies in seconds</h3>
+          <p style="font-size:13px">Category: <strong>outage</strong> · Priority: <strong>P2</strong> · Vulnerable customer: <strong>yes</strong> · Confidence: <strong>94%</strong></p>
+        </div>
+      </div>
+      <div class="card" style="display:flex;gap:14px;align-items:flex-start">
+        <span style="font-size:22px;flex-shrink:0">3</span>
+        <div>
+          <h3>Ticket created and assigned</h3>
+          <p style="font-size:13px">Team: <strong>Emergency Dispatch</strong> · Ticket in dashboard with visible reasoning.</p>
+        </div>
+      </div>
+      <div class="card card-green" style="display:flex;gap:14px;align-items:flex-start">
+        <span style="font-size:22px;flex-shrink:0">4</span>
+        <div>
+          <h3>Operator confirms</h3>
+          <p style="font-size:13px">One click. The system records the confirmation. The next similar email will be handled even better.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: dashboard mockup -->
+    <div style="display:flex; flex-direction:column; gap:14px; justify-content:center">
+      <div class="card" style="background: var(--surface2)">
+        <div style="font-size:11px; color:var(--dim); margin-bottom:14px; text-transform:uppercase; letter-spacing:.08em">Dashboard — ticket #1042</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px">
+          <span class="tag tr">outage</span>
+          <span class="tag tr">P2 — Urgent</span>
+          <span class="tag to">vulnerable customer</span>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-bottom:14px; font-style:italic">"Good evening, I've had no power since last night. I have young children at home."</p>
+        <div style="font-size:12px; color:var(--dim); margin-bottom:4px">Agent reasoning:</div>
+        <p style="font-size:12px; color:var(--muted); margin-bottom:16px">Email signals a power outage with vulnerable customer flag. Customer history shows 2 similar reports. Confidence: 94%.</p>
+        <div style="display:flex; gap:10px">
+          <div style="flex:1; background: rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.4); border-radius:8px; padding:8px; text-align:center; font-size:12px; color:#6ee7b7; font-weight:700">✓ Confirm</div>
+          <div style="flex:1; background: rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.3); border-radius:8px; padding:8px; text-align:center; font-size:12px; color:#fcd34d; font-weight:700">✎ Override</div>
+        </div>
+      </div>
+      <div class="card" style="background: rgba(16,185,129,.06); border-color:rgba(16,185,129,.25)">
+        <p style="font-size:13px; color:var(--text)">When the operator overrides, the correction is stored. Every 10 corrections the system updates its patterns — no technical intervention needed.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     5 · SELF-IMPROVING LOOP
+═══════════════════════════════════ -->
+<div class="slide" id="s5">
+  <div class="eyebrow">The Key Innovation</div>
+  <h2>Self-improving, in seconds</h2>
+
+  <div class="g2">
+    <div>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px">
+        <div class="card" style="display:flex;gap:14px;align-items:center; border-left:3px solid var(--blue)">
+          <span style="font-size:24px;flex-shrink:0">🔁</span>
+          <div>
+            <h3>Override → memory</h3>
+            <p style="font-size:13px">Every operator correction is saved together with the reasoning.</p>
+          </div>
+        </div>
+        <div class="card" style="display:flex;gap:14px;align-items:center; border-left:3px solid var(--accent)">
+          <span style="font-size:24px;flex-shrink:0">⚡</span>
+          <div>
+            <h3>Every 10 corrections → update</h3>
+            <p style="font-size:13px">The system picks the 5 most meaningful examples and injects them into the agent's context.</p>
+          </div>
+        </div>
+        <div class="card" style="display:flex;gap:14px;align-items:center; border-left:3px solid var(--green)">
+          <span style="font-size:24px;flex-shrink:0">📈</span>
+          <div>
+            <h3>Accuracy tracked over time</h3>
+            <p style="font-size:13px">Every update records a snapshot. The trend is visible in the dashboard.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:14px">
+      <div class="card" style="background: rgba(16,185,129,.08); border-color:rgba(16,185,129,.3)">
+        <div class="eyebrow" style="color:#6ee7b7; margin-bottom:10px">Why not fine-tuning?</div>
+        <table style="width:100%; font-size:12px; border-collapse:collapse">
+          <tr style="color:var(--dim)">
+            <th style="text-align:left; padding:4px 0; border-bottom:1px solid var(--border)">Approach</th>
+            <th style="text-align:center; border-bottom:1px solid var(--border)">Speed</th>
+            <th style="text-align:center; border-bottom:1px solid var(--border)">Reversible</th>
+            <th style="text-align:center; border-bottom:1px solid var(--border)">Infra</th>
+          </tr>
+          <tr style="color:var(--muted)">
+            <td style="padding:5px 0">Fine-tuning</td>
+            <td style="text-align:center">Days</td>
+            <td style="text-align:center; color:var(--red)">No</td>
+            <td style="text-align:center; color:var(--red)">Heavy</td>
+          </tr>
+          <tr style="color:var(--muted)">
+            <td style="padding:5px 0">RAG</td>
+            <td style="text-align:center">Minutes</td>
+            <td style="text-align:center; color:var(--orange)">Partial</td>
+            <td style="text-align:center; color:var(--orange)">Medium</td>
+          </tr>
+          <tr style="color:var(--text); font-weight:600">
+            <td style="padding:5px 0">Few-shot injection ✦</td>
+            <td style="text-align:center">Seconds</td>
+            <td style="text-align:center; color:var(--green)">Yes</td>
+            <td style="text-align:center; color:var(--green)">Zero</td>
+          </tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Transparent to the operator</h3>
+        <p style="font-size:13px">Operators can see exactly which examples the agent is learning from. No black box. Wrong examples can be removed at any time.</p>
+      </div>
+      <div class="card card-orange">
+        <h3>Safe by default</h3>
+        <p style="font-size:13px">Emergencies always go to human review. If confidence is low, the ticket is never auto-created — regardless of the prompt.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     6 · RESULTS
+═══════════════════════════════════ -->
+<div class="slide" id="s6">
+  <div class="eyebrow">Results</div>
+  <h2>Metrics & completed challenges</h2>
+
+  <div class="g2">
+    <div>
+      <div class="mrow">
+        <span class="mn">Classification accuracy</span>
+        <div class="mb"><div class="mf" style="width:87.5%"></div></div>
+        <span class="mv">87.5%</span>
+      </div>
+      <div class="mrow">
+        <span class="mn">False-confidence rate <span style="font-size:11px; color:var(--dim)">(confident & wrong)</span></span>
+        <div class="mb"><div class="mf" style="width:5%; background:linear-gradient(90deg,var(--red),#f87171)"></div></div>
+        <span class="mv" style="color:var(--green)">5%</span>
+      </div>
+      <div class="mrow">
+        <span class="mn">Human review rate</span>
+        <div class="mb"><div class="mf" style="width:15%; background:linear-gradient(90deg,var(--orange),#fcd34d)"></div></div>
+        <span class="mv">15%</span>
+      </div>
+      <div class="mrow">
+        <span class="mn">Error rate</span>
+        <div class="mb"><div class="mf" style="width:1%"></div></div>
+        <span class="mv" style="color:var(--green)">0%</span>
+      </div>
+
+      <div class="div"></div>
+
+      <div class="card" style="background:rgba(16,185,129,.06); border-color:rgba(16,185,129,.3); padding:14px 18px">
+        <p style="font-size:13px; color:var(--text)">The <strong>false-confidence rate</strong> is the metric we care about most: a wrong but confident agent bypasses the guardrail. 5% is the number to watch — not the overall accuracy.</p>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <div class="card crow"><span class="tag tg" style="min-width:66px;text-align:center">Done</span><div><strong style="font-size:13px">#1 — The Mandate</strong><p style="font-size:12px; margin:0">Mandate with explicit scope and escalation criteria</p></div></div>
+      <div class="card crow"><span class="tag tg" style="min-width:66px;text-align:center">Done</span><div><strong style="font-size:13px">#2 — The Bones</strong><p style="font-size:12px; margin:0">ADR: coordinator + specialist tools, explicit stop_reason handling</p></div></div>
+      <div class="card crow"><span class="tag tg" style="min-width:66px;text-align:center">Done</span><div><strong style="font-size:13px">#3 — The Tools</strong><p style="font-size:12px; margin:0">5 tools with structured errors and boundary descriptions</p></div></div>
+      <div class="card crow"><span class="tag tg" style="min-width:66px;text-align:center">Done</span><div><strong style="font-size:13px">#4 — The Triage</strong><p style="font-size:12px; margin:0">Coordinator with retry loop and full audit trail</p></div></div>
+      <div class="card crow"><span class="tag tg" style="min-width:66px;text-align:center">Done</span><div><strong style="font-size:13px">#5 — The Brake</strong><p style="font-size:12px; margin:0">PreToolUse hook blocks routing on low confidence</p></div></div>
+      <div class="card crow"><span class="tag to" style="min-width:66px;text-align:center">Partial</span><div><strong style="font-size:13px">#6 + #7 — Attack & Scorecard</strong><p style="font-size:12px; margin:0">10 adversarial cases + eval harness with metrics</p></div></div>
+      <div class="card crow" style="border-left:3px solid var(--accent)"><span class="tag" style="min-width:66px;text-align:center">Done ✦</span><div><strong style="font-size:13px">#8 — The Loop</strong><p style="font-size:12px; margin:0">Override → FeedbackEntry → few-shot refresh every 10 corrections</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     7 · TECHNICAL ARCHITECTURE
+═══════════════════════════════════ -->
+<div class="slide" id="s7">
+  <div class="eyebrow">Technical Deep Dive</div>
+  <h2>System Architecture</h2>
+
+  <!-- Full-width schematic flow: 3 columns per row [badge | node | output label] -->
+  <div style="display:flex; flex-direction:column; justify-content:space-between; height:calc(100% - 100px); max-width:860px; margin:0 auto; width:100%">
+
+    <!-- Inbound email -->
+    <div style="display:grid; grid-template-columns:36px 1fr 220px; gap:10px; align-items:center">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px">📧</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 16px">
+        <span style="font-size:13px;font-weight:700;color:var(--text)">Inbound email</span>
+        <span style="font-size:11px;color:var(--dim);margin-left:10px">subject + body</span>
+      </div>
+      <div></div>
+    </div>
+
+    <div style="display:flex;justify-content:start;padding-left:17px"><div style="width:2px;height:12px;background:var(--border)"></div></div>
+
+    <!-- Coordinator -->
+    <div style="display:grid; grid-template-columns:36px 1fr 220px; gap:10px; align-items:center">
+      <div style="width:36px;height:36px;border-radius:50%;background:rgba(124,58,237,.2);border:2px solid rgba(124,58,237,.5);display:flex;align-items:center;justify-content:center;font-size:16px">🧠</div>
+      <div style="background:rgba(124,58,237,.1);border:2px solid rgba(124,58,237,.45);border-radius:8px;padding:9px 16px">
+        <span style="font-size:13px;font-weight:800;color:var(--accent3)">Coordinator Agent</span>
+        <span style="font-size:11px;color:var(--dim);margin-left:10px">Claude Sonnet 4.6 · AWS Bedrock · orchestrates all tool calls</span>
+      </div>
+      <div></div>
+    </div>
+
+    <div style="display:flex;justify-content:start;padding-left:17px"><div style="width:2px;height:12px;background:var(--border)"></div></div>
+
+    <!-- T1 -->
+    <div style="display:grid; grid-template-columns:36px 1fr 220px; gap:10px; align-items:center">
+      <div style="font-size:11px;font-weight:800;color:var(--dim);text-align:center">T1</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent3);border-radius:8px;padding:9px 16px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:13px;font-weight:600;color:var(--text)">classify_complaint</span>
+        <span class="tag tb" style="font-size:9px">Haiku</span>
+      </div>
+      <div style="font-size:11px;color:var(--dim)">→ category · priority · confidence · vulnerable flag</div>
+    </div>
+
+    <div style="display:flex;justify-content:start;padding-left:17px"><div style="width:2px;height:10px;background:var(--border)"></div></div>
+
+    <!-- T2 + T3 -->
+    <div style="display:grid; grid-template-columns:36px 1fr 220px; gap:10px; align-items:center">
+      <div style="font-size:11px;font-weight:800;color:var(--dim);text-align:center;line-height:1.4">T2<br>T3</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 16px">
+        <span style="font-size:13px;font-weight:600;color:var(--text)">get_customer_history &nbsp;+&nbsp; get_similar_cases</span>
+      </div>
+      <div style="font-size:11px;color:var(--dim)">→ CRM data · 3 operator-corrected cases</div>
+    </div>
+
+    <div style="display:flex;justify-content:start;padding-left:17px"><div style="width:2px;height:10px;background:var(--border)"></div></div>
+
+    <!-- Hook -->
+    <div style="display:grid; grid-template-columns:36px 1fr 220px; gap:10px; align-items:center">
+      <div style="font-size:18px;text-align:center">🛡️</div>
+      <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.4);border-radius:8px;padding:9px 16px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:13px;font-weight:700;color:#fca5a5">PreToolUse Hook</span>
+        <span style="font-size:11px;color:var(--dim)">deterministic block — survives any prompt change</span>
+      </div>
+      <div style="font-size:11px;color:#fca5a5">conf &lt; 0.5 → BLOCK &nbsp;|&nbsp; emergency → BLOCK</div>
+    </div>
+
+    <div style="display:flex;justify-content:start;padding-left:17px"><div style="width:2px;height:10px;background:var(--border)"></div></div>
+
+    <!-- T4 -->
+    <div style="display:grid; grid-template-columns:36px 1fr 220px; gap:10px; align-items:center">
+      <div style="font-size:11px;font-weight:800;color:var(--dim);text-align:center">T4</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 16px">
+        <span style="font-size:13px;font-weight:600;color:var(--text)">route_ticket</span>
+      </div>
+      <div style="font-size:11px;color:var(--dim)">→ team assigned · ticket created in DB</div>
+    </div>
+
+    <div style="display:flex;justify-content:start;padding-left:17px"><div style="width:2px;height:10px;background:var(--border)"></div></div>
+
+    <!-- T5 -->
+    <div style="display:grid; grid-template-columns:36px 1fr 220px; gap:10px; align-items:center">
+      <div style="font-size:11px;font-weight:800;color:var(--dim);text-align:center">T5</div>
+      <div style="background:var(--surface);border:1px solid rgba(16,185,129,.4);border-left:3px solid var(--green);border-radius:8px;padding:9px 16px">
+        <span style="font-size:13px;font-weight:600;color:var(--text)">submit_triage_result</span>
+      </div>
+      <div style="font-size:11px;color:var(--dim)">→ structured final output · always last call</div>
+    </div>
+
+    <div style="display:flex;justify-content:start;padding-left:17px"><div style="width:2px;height:12px;background:var(--border)"></div></div>
+
+    <!-- Output layer -->
+    <div style="display:grid; grid-template-columns:36px 1fr 220px; gap:10px; align-items:center">
+      <div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:13px;margin-bottom:2px">🗄️</div>
+          <div style="font-size:10px;color:var(--dim)">SQLite · audit trail</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:13px;margin-bottom:2px">🖥️</div>
+          <div style="font-size:10px;color:var(--dim)">Operator dashboard</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:13px;margin-bottom:2px">📊</div>
+          <div style="font-size:10px;color:var(--dim)">Metrics API</div>
+        </div>
+      </div>
+      <div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════
+     8 · CONCLUSIONS
+═══════════════════════════════════ -->
+<div class="slide" id="s8">
+  <div class="eyebrow">Conclusions</div>
+  <h2>What we built. What we learned.</h2>
+
+  <div class="g2" style="margin-bottom:20px">
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card card-l">
+        <h3>A production-ready triage pipeline</h3>
+        <p style="font-size:13px">From raw email to routed ticket in seconds. Operator review built in from day one — not as an afterthought.</p>
+      </div>
+      <div class="card card-green">
+        <h3>Self-improving without retraining</h3>
+        <p style="font-size:13px">Few-shot injection from operator corrections: seconds to activate, fully reversible, zero infrastructure. The agent got better while we were presenting.</p>
+      </div>
+      <div class="card card-red">
+        <h3>Deterministic safety that survives prompt changes</h3>
+        <p style="font-size:13px">PreToolUse hook blocks emergency routing unconditionally. A guardrail that lives outside the model context window cannot be bypassed by prompt injection.</p>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card" style="background:rgba(124,58,237,.07);border-color:rgba(124,58,237,.3)">
+        <div class="eyebrow" style="margin-bottom:10px">What Claude Code enabled</div>
+        <ul>
+          <li style="font-size:13px"><strong>Hooks</strong> — deterministic guardrails, not probabilistic prompts</li>
+          <li style="font-size:13px"><strong>/start · /stop</strong> — runbooks as repeatable slash commands</li>
+          <li style="font-size:13px"><strong>CLAUDE.md</strong> — shared conventions enforced from session 1</li>
+          <li style="font-size:13px"><strong>Coordinator pattern</strong> — 5 specialist tools, full audit trail</li>
+        </ul>
+      </div>
+      <div class="card card-orange">
+        <h3>Honest gaps</h3>
+        <p style="font-size:13px">Customer history is mocked. Adversarial set covers 10 cases — not enough for production. The self-improving loop is logically correct but needs more data to prove the accuracy trend empirically.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="text-align:center; padding:22px; background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(59,130,246,.08))">
+    <p style="font-size:20px; font-weight:700; color:var(--text); letter-spacing:-.01em; margin-bottom:6px">
+      "The agent got smarter while we were presenting."
+    </p>
+    <p style="font-size:13px; color:var(--dim)">The loop ran in the background. Operators confirmed tickets. Examples updated. Zero code changes.</p>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<div id="progress"></div>
+<div id="counter"></div>
+<div id="hint">← → to navigate &nbsp;·&nbsp; Space to advance</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let cur = 0;
+
+  function goTo(n) {
+    if (n < 0 || n >= total) return;
+    slides[cur].classList.remove('active');
+    slides[cur].classList.add('exit');
+    setTimeout(() => slides[cur].classList.remove('exit'), 420);
+    cur = n;
+    slides[cur].classList.add('active');
+    document.getElementById('progress').style.width = ((cur + 1) / total * 100) + '%';
+    document.getElementById('counter').textContent = (cur + 1) + ' / ' + total;
+  }
+
+  goTo(0);
+
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight','ArrowDown',' '].includes(e.key)) { e.preventDefault(); goTo(cur + 1); }
+    if (['ArrowLeft','ArrowUp'].includes(e.key))        { e.preventDefault(); goTo(cur - 1); }
+    if (e.key === 'Home') goTo(0);
+    if (e.key === 'End')  goTo(total - 1);
+  });
+
+  let tx = 0;
+  document.addEventListener('touchstart', e => tx = e.touches[0].clientX, { passive: true });
+  document.addEventListener('touchend',   e => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) dx < 0 ? goTo(cur + 1) : goTo(cur - 1);
+  });
+
+  document.addEventListener('click', e => {
+    if (e.clientX > window.innerWidth / 2) goTo(cur + 1);
+    else goTo(cur - 1);
+  });
+</script>
+</body>
+</html>
