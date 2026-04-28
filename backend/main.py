@@ -26,7 +26,7 @@ load_dotenv()
 from backend.database import init_db, get_session, engine
 from backend.models import Email, Ticket, FeedbackEntry, AccuracySnapshot
 from agent.coordinator import triage_email
-from agent.feedback_store import save_override, get_accuracy_history
+from agent.feedback_store import save_override, get_accuracy_history, REFRESH_THRESHOLD
 from agent.tools import CATEGORY_TO_OFFICE
 
 app = FastAPI(title="Claim Triage Agent", version="1.0.0")
@@ -213,7 +213,7 @@ def override_ticket(ticket_id: int, req: ReviewRequest, session: Session = Depen
         "status": "overridden",
         "ticket_id": ticket_id,
         "feedback_id": feedback.id,
-        "few_shots_refreshed": (feedback.id % 10 == 0),
+        "few_shots_refreshed": (feedback.id % REFRESH_THRESHOLD == 0),
     }
 
 
@@ -339,7 +339,7 @@ def get_summary(session: Session = Depends(get_session)):
         "overridden": overridden,
         "accuracy_rate": accuracy,
         "total_feedback_entries": total_feedback,
-        "few_shots_until_refresh": 10 - (total_feedback % 10) if total_feedback > 0 else 10,
+        "few_shots_until_refresh": REFRESH_THRESHOLD - (total_feedback % REFRESH_THRESHOLD) if total_feedback > 0 else REFRESH_THRESHOLD,
     }
 
 

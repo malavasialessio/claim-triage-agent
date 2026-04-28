@@ -403,9 +403,12 @@ async function loadAnalytics() {
     ? `${Math.round(summary.accuracy_rate * 100)}%` : '—';
   document.getElementById('stat-feedback').textContent = summary.total_feedback_entries;
   document.getElementById('stat-pending').textContent = summary.pending_review;
+  const nextRefresh = summary.few_shots_until_refresh;
+  const refreshMsg = nextRefresh === 1
+    ? 'Few-shot aggiornati ad ogni correzione.'
+    : `Prossimo aggiornamento few-shot tra ${nextRefresh} correzioni.`;
   document.getElementById('few-shot-status').textContent =
-    `${summary.total_feedback_entries} feedback raccolti. ` +
-    `Prossimo aggiornamento few-shot tra ${summary.few_shots_until_refresh} override.`;
+    `${summary.total_feedback_entries} feedback raccolti. ${refreshMsg}`;
 
   // Accuracy chart
   const ctx = document.getElementById('accuracy-chart').getContext('2d');
