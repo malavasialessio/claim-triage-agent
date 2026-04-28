@@ -278,8 +278,9 @@ async function api(path, opts = {}) {
 
 // ── Inbox ─────────────────────────────────────────────────────────────────────
 async function loadInbox() {
-  const tickets = await api('/emails/pending');
   const list = document.getElementById('inbox-list');
+  list.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">Aggiornamento...</p>';
+  const tickets = await api('/emails/pending');
   const empty = document.getElementById('inbox-empty');
   document.getElementById('badge-pending').textContent = tickets.length || '';
   if (!tickets.length) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
@@ -366,31 +367,35 @@ function openModal(ticket) {
 function closeModal() { document.getElementById('modal').classList.add('hidden'); currentTicketId = null; }
 
 async function confirmTicket() {
-  await api(`/tickets/${currentTicketId}/confirm`, { method: 'POST' });
-  closeModal(); loadInbox(); updateAccuracyBadge();
+  closeModal();
+  try {
+    await api(`/tickets/${currentTicketId}/confirm`, { method: 'POST' });
+    showToast('✓ Ticket confermato.');
+  } catch (e) {
+    showToast(`Errore: ${e.message}`);
+  }
+  await loadInbox();
+  updateAccuracyBadge();
 }
 
 async function overrideTicket() {
   const category = document.getElementById('modal-category').value;
   const priority = document.getElementById('modal-priority').value;
   const note = document.getElementById('modal-note').value;
+  closeModal();
   try {
     const result = await api(`/tickets/${currentTicketId}/override`, {
       method: 'POST',
       body: JSON.stringify({ human_category: category, human_priority: priority, operator_note: note })
     });
-    closeModal();
-    loadInbox();
-    updateAccuracyBadge();
     showToast(result.few_shots_refreshed
       ? '✓ Correzione salvata — few-shot aggiornati.'
       : '✓ Correzione salvata.');
   } catch (e) {
-    closeModal();
-    loadInbox();
     showToast(`Errore: ${e.message}`);
   }
-  loadInbox(); updateAccuracyBadge();
+  await loadInbox();
+  updateAccuracyBadge();
 }
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
