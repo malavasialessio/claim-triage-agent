@@ -269,6 +269,10 @@ function showTab(name) {
 // ── API helpers ────────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
   const r = await fetch(API + path, { headers: {'Content-Type':'application/json'}, ...opts });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: r.statusText }));
+    throw new Error(err.detail || `HTTP ${r.status}`);
+  }
   return r.json();
 }
 
@@ -370,17 +374,21 @@ async function overrideTicket() {
   const category = document.getElementById('modal-category').value;
   const priority = document.getElementById('modal-priority').value;
   const note = document.getElementById('modal-note').value;
-  const result = await api(`/tickets/${currentTicketId}/override`, {
-    method: 'POST',
-    body: JSON.stringify({ human_category: category, human_priority: priority, operator_note: note })
-  });
-  closeModal();
-  loadInbox();
-  updateAccuracyBadge();
-  if (result.few_shots_refreshed) {
-    showToast('✓ Correzione salvata — few-shot aggiornati, l\'agente impara subito.');
-  } else {
-    showToast('✓ Correzione salvata.');
+  try {
+    const result = await api(`/tickets/${currentTicketId}/override`, {
+      method: 'POST',
+      body: JSON.stringify({ human_category: category, human_priority: priority, operator_note: note })
+    });
+    closeModal();
+    loadInbox();
+    updateAccuracyBadge();
+    showToast(result.few_shots_refreshed
+      ? '✓ Correzione salvata — few-shot aggiornati.'
+      : '✓ Correzione salvata.');
+  } catch (e) {
+    closeModal();
+    loadInbox();
+    showToast(`Errore: ${e.message}`);
   }
   loadInbox(); updateAccuracyBadge();
 }

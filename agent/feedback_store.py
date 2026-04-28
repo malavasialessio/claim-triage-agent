@@ -44,6 +44,7 @@ def save_override(
             _refresh_few_shots(session, email_body, entry)
 
         _take_accuracy_snapshot(session)
+        session.refresh(entry)  # ri-carica dopo i commit annidati di _refresh_few_shots
         return entry
 
 
