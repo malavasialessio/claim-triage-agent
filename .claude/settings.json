@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "route_ticket",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/check_route_ticket.py"
+          }
+        ]
+      }
+    ]
+  }
+}
