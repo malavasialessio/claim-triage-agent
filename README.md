@@ -2,10 +2,10 @@
 
 ## Participants
 - Alessio Malavasi (Architect / Dev / PM)
-- [Teammate] (Architect / Dev / Quality)
+- Ludovica Santinelli (Architect / Dev / Quality)
 
 ## Scenario
-Scenario 5: Agentic Solution — "The Intake"
+Scenario 5: Agentic Solution — Claim triage
 
 ## What We Built
 An AI-powered complaint triage system for an electric utility company. Inbound customer emails
