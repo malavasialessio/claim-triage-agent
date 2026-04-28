@@ -367,9 +367,10 @@ function openModal(ticket) {
 function closeModal() { document.getElementById('modal').classList.add('hidden'); currentTicketId = null; }
 
 async function confirmTicket() {
+  const ticketId = currentTicketId;
   closeModal();
   try {
-    await api(`/tickets/${currentTicketId}/confirm`, { method: 'POST' });
+    await api(`/tickets/${ticketId}/confirm`, { method: 'POST' });
     showToast('✓ Ticket confermato.');
   } catch (e) {
     showToast(`Errore: ${e.message}`);
@@ -379,12 +380,13 @@ async function confirmTicket() {
 }
 
 async function overrideTicket() {
+  const ticketId = currentTicketId;
   const category = document.getElementById('modal-category').value;
   const priority = document.getElementById('modal-priority').value;
   const note = document.getElementById('modal-note').value;
   closeModal();
   try {
-    const result = await api(`/tickets/${currentTicketId}/override`, {
+    const result = await api(`/tickets/${ticketId}/override`, {
       method: 'POST',
       body: JSON.stringify({ human_category: category, human_priority: priority, operator_note: note })
     });
