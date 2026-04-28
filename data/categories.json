@@ -1,0 +1,73 @@
+{
+  "categories": [
+    {
+      "id": "emergenza_pericolo",
+      "label": "Emergenza / Pericolo",
+      "office": "Pronto Intervento Urgente",
+      "default_priority": "P1",
+      "description": "Situazioni di pericolo imminente: cavi scoperti, odore bruciato, scintille, rischio incendio, folgorazione",
+      "always_human_review": true
+    },
+    {
+      "id": "guasto_interruzione",
+      "label": "Guasto / Interruzione",
+      "office": "Pronto Intervento",
+      "default_priority": "P2",
+      "description": "Mancanza di corrente, interruzioni non pianificate, guasti alla linea"
+    },
+    {
+      "id": "qualita_fornitura",
+      "label": "Qualità Fornitura",
+      "office": "Tecnico Qualità",
+      "default_priority": "P3",
+      "description": "Tensione anomala, sbalzi di tensione, bassa tensione, blackout frequenti ma non emergenza"
+    },
+    {
+      "id": "reclamo_fattura",
+      "label": "Reclamo Fattura",
+      "office": "Amministrazione",
+      "default_priority": "P4",
+      "description": "Bolletta errata, addebiti non riconosciuti, doppia fatturazione, importi anomali"
+    },
+    {
+      "id": "contatore",
+      "label": "Contatore",
+      "office": "Tecnico Contatori",
+      "default_priority": "P4",
+      "description": "Lettura errata contatore, richiesta sostituzione contatore, contatore guasto, autolettura"
+    },
+    {
+      "id": "cambio_contratto",
+      "label": "Cambio Fornitore / Contratto",
+      "office": "Commerciale",
+      "default_priority": "P4",
+      "description": "Richiesta cambio fornitore, disdetta contratto, modifica piano tariffario, voltura"
+    },
+    {
+      "id": "nuovo_allaccio",
+      "label": "Nuovo Allaccio / Voltura",
+      "office": "Nuovi Allacci",
+      "default_priority": "P4",
+      "description": "Richiesta nuovo allaccio elettrico, attivazione fornitura, trasferimento utenza"
+    },
+    {
+      "id": "info_generale",
+      "label": "Richiesta Info Generale",
+      "office": "Customer Service",
+      "default_priority": "P5",
+      "description": "Domande generali su tariffe, orari, documenti necessari, stato pratiche"
+    }
+  ],
+  "priority_rules": {
+    "P1": "Emergenza attiva, rischio vita o sicurezza immediata",
+    "P2": "Guasto in corso, cliente senza servizio",
+    "P3": "Disagio significativo, servizio degradato",
+    "P4": "Reclamo standard, nessun disagio immediato",
+    "P5": "Informativo, nessuna urgenza"
+  },
+  "priority_modifiers": [
+    "Cliente vulnerabile (anziano, disabile, dipendente da apparecchiature mediche) → scala priorità di un livello",
+    "Cliente business con SLA → scala priorità di un livello",
+    "Seconda segnalazione dello stesso problema → scala priorità di un livello"
+  ]
+}
