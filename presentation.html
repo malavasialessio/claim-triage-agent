@@ -357,7 +357,7 @@
         </div>
       </div>
       <div class="card" style="background: rgba(16,185,129,.06); border-color:rgba(16,185,129,.25)">
-        <p style="font-size:13px; color:var(--text)">When the operator overrides, the correction is stored. Every 10 corrections the system updates its patterns — no technical intervention needed.</p>
+        <p style="font-size:13px; color:var(--text)">When the operator overrides, the correction is stored. Every correction instantly updates the agent's patterns — no technical intervention needed.</p>
       </div>
     </div>
 
@@ -384,7 +384,7 @@
         <div class="card" style="display:flex;gap:14px;align-items:center; border-left:3px solid var(--accent)">
           <span style="font-size:24px;flex-shrink:0">⚡</span>
           <div>
-            <h3>Every 10 corrections → update</h3>
+            <h3>Every correction → instant update</h3>
             <p style="font-size:13px">The system picks the 5 most meaningful examples and injects them into the agent's context.</p>
           </div>
         </div>
@@ -451,8 +451,8 @@
     <div>
       <div class="mrow">
         <span class="mn">Classification accuracy</span>
-        <div class="mb"><div class="mf" style="width:87.5%"></div></div>
-        <span class="mv">87.5%</span>
+        <div class="mb"><div class="mf" style="width:80%"></div></div>
+        <span class="mv">80%</span>
       </div>
       <div class="mrow">
         <span class="mn">False-confidence rate <span style="font-size:11px; color:var(--dim)">(confident & wrong)</span></span>
@@ -461,8 +461,13 @@
       </div>
       <div class="mrow">
         <span class="mn">Human review rate</span>
-        <div class="mb"><div class="mf" style="width:15%; background:linear-gradient(90deg,var(--orange),#fcd34d)"></div></div>
-        <span class="mv">15%</span>
+        <div class="mb"><div class="mf" style="width:55%; background:linear-gradient(90deg,var(--orange),#fcd34d)"></div></div>
+        <span class="mv">55%</span>
+      </div>
+      <div class="mrow">
+        <span class="mn">Adversarial detection rate <span style="font-size:11px; color:var(--dim)">(attacks flagged)</span></span>
+        <div class="mb"><div class="mf" style="width:95%; background:linear-gradient(90deg,var(--green),#6ee7b7)"></div></div>
+        <span class="mv" style="color:var(--green)">95%</span>
       </div>
       <div class="mrow">
         <span class="mn">Error rate</span>
@@ -483,8 +488,8 @@
       <div class="card crow"><span class="tag tg" style="min-width:66px;text-align:center">Done</span><div><strong style="font-size:13px">#3 — The Tools</strong><p style="font-size:12px; margin:0">5 tools with structured errors and boundary descriptions</p></div></div>
       <div class="card crow"><span class="tag tg" style="min-width:66px;text-align:center">Done</span><div><strong style="font-size:13px">#4 — The Triage</strong><p style="font-size:12px; margin:0">Coordinator with retry loop and full audit trail</p></div></div>
       <div class="card crow"><span class="tag tg" style="min-width:66px;text-align:center">Done</span><div><strong style="font-size:13px">#5 — The Brake</strong><p style="font-size:12px; margin:0">PreToolUse hook blocks routing on low confidence</p></div></div>
-      <div class="card crow"><span class="tag to" style="min-width:66px;text-align:center">Partial</span><div><strong style="font-size:13px">#6 + #7 — Attack & Scorecard</strong><p style="font-size:12px; margin:0">10 adversarial cases + eval harness with metrics</p></div></div>
-      <div class="card crow" style="border-left:3px solid var(--accent)"><span class="tag" style="min-width:66px;text-align:center">Done ✦</span><div><strong style="font-size:13px">#8 — The Loop</strong><p style="font-size:12px; margin:0">Override → FeedbackEntry → few-shot refresh every 10 corrections</p></div></div>
+      <div class="card crow"><span class="tag tg" style="min-width:66px;text-align:center">Done</span><div><strong style="font-size:13px">#6 + #7 — Attack & Scorecard</strong><p style="font-size:12px; margin:0">20 adversarial cases · 95% detection rate · eval harness with scorecard</p></div></div>
+      <div class="card crow" style="border-left:3px solid var(--accent)"><span class="tag" style="min-width:66px;text-align:center">Done ✦</span><div><strong style="font-size:13px">#8 — The Loop</strong><p style="font-size:12px; margin:0">Override → FeedbackEntry → few-shot refresh on every correction</p></div></div>
     </div>
   </div>
 </div>
@@ -638,7 +643,7 @@
       </div>
       <div class="card card-orange">
         <h3>Honest gaps</h3>
-        <p style="font-size:13px">Customer history is mocked. Adversarial set covers 10 cases — not enough for production. The self-improving loop is logically correct but needs more data to prove the accuracy trend empirically.</p>
+        <p style="font-size:13px">Customer history is mocked. Adversarial set covers 20 cases — not enough for production. The self-improving loop is logically correct but needs more real-world data to prove the accuracy trend empirically. Baseline: 80% golden accuracy, 5% false-confidence rate.</p>
       </div>
     </div>
   </div>

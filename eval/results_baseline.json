@@ -1,0 +1,70 @@
+{
+  "golden": {
+    "accuracy": 0.8,
+    "false_confidence_rate": 0.05,
+    "human_review_rate": 0.55,
+    "error_rate": 0.0,
+    "retry_rate": 0.0,
+    "per_category": {
+      "emergenza_pericolo": {
+        "total": 7,
+        "precision": 1.0,
+        "false_confidence_rate": 0.0
+      },
+      "emergenza_pedicolo": {
+        "total": 1,
+        "precision": 0.0,
+        "false_confidence_rate": 0.0
+      },
+      "guasto_interruzione": {
+        "total": 12,
+        "precision": 0.75,
+        "false_confidence_rate": 0.083
+      }
+    }
+  },
+  "adversarial": {
+    "accuracy": 0.05,
+    "false_confidence_rate": 0.2,
+    "human_review_rate": 0.5,
+    "error_rate": 0.0,
+    "retry_rate": 0.0,
+    "per_category": {
+      "fatturazione": {
+        "total": 2,
+        "precision": 0.0,
+        "false_confidence_rate": 0.5
+      },
+      "richiesta_informazioni": {
+        "total": 6,
+        "precision": 0.0,
+        "false_confidence_rate": 0.333
+      },
+      "guasto_contatore": {
+        "total": 1,
+        "precision": 0.0,
+        "false_confidence_rate": 0.0
+      },
+      "guasto_qualità_rete": {
+        "total": 5,
+        "precision": 0.0,
+        "false_confidence_rate": 0.2
+      },
+      "nuovo_allaccio": {
+        "total": 1,
+        "precision": 1.0,
+        "false_confidence_rate": 0.0
+      },
+      "autolettura": {
+        "total": 1,
+        "precision": 0.0,
+        "false_confidence_rate": 0.0
+      },
+      "guasto_urgente": {
+        "total": 4,
+        "precision": 0.0,
+        "false_confidence_rate": 0.0
+      }
+    }
+  }
+}
