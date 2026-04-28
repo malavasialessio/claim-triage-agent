@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -37,6 +37,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
+app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
@@ -214,7 +217,68 @@ def override_ticket(ticket_id: int, req: ReviewRequest, session: Session = Depen
     }
 
 
-# ── Dataset loader ────────────────────────────────────────────────────────────
+# ── Dataset loader + batch processor ─────────────────────────────────────────
+
+_process_state: dict = {"running": False, "processed": 0, "total": 0, "errors": 0}
+
+
+def _process_emails_batch(email_ids: list[str]) -> None:
+    global _process_state
+    with Session(engine) as session:
+        for email_id in email_ids:
+            try:
+                email = session.exec(select(Email).where(Email.email_id == email_id)).first()
+                if not email:
+                    _process_state["processed"] += 1
+                    continue
+
+                result = triage_email(email.email_id, email.subject, email.body, db_session=session)
+
+                ticket = Ticket(
+                    email_id=email.email_id,
+                    agent_category=result["final_category"],
+                    agent_priority=result["final_priority"],
+                    agent_office=result["final_office"],
+                    agent_confidence=result["confidence"],
+                    agent_reasoning=result.get("reasoning", ""),
+                    agent_extracted_customer_id=result.get("extracted_customer_id"),
+                    agent_has_vulnerable_customer=result.get("has_vulnerable_customer", False),
+                    retry_count=result.get("retry_count", 0),
+                    retry_errors=result.get("retry_errors", ""),
+                    status="human_review" if result.get("needs_human_review") else "pending_review",
+                )
+                session.add(ticket)
+                email.status = "processed"
+                session.commit()
+                _process_state["processed"] += 1
+            except Exception as e:
+                _process_state["errors"] += 1
+                _process_state["processed"] += 1
+
+    _process_state["running"] = False
+
+
+@app.post("/dataset/process")
+async def process_dataset(background_tasks: BackgroundTasks, session: Session = Depends(get_session), limit: int = 10):
+    """Lancia il triage in background su tutte le email pending."""
+    global _process_state
+    if _process_state["running"]:
+        raise HTTPException(status_code=409, detail="Processing già in corso")
+
+    pending = session.exec(select(Email).where(Email.status == "pending").limit(limit)).all()
+    if not pending:
+        return {"message": "Nessuna email pending da processare", "total": 0}
+
+    _process_state = {"running": True, "processed": 0, "total": len(pending), "errors": 0}
+    background_tasks.add_task(_process_emails_batch, [e.email_id for e in pending])
+    return {"message": f"Avviato triage di {len(pending)} email", "total": len(pending)}
+
+
+@app.get("/dataset/process/status")
+def process_status():
+    """Stato del batch processing in corso."""
+    return _process_state
+
 
 @app.post("/dataset/load")
 def load_dataset(req: LoadDatasetRequest, session: Session = Depends(get_session)):

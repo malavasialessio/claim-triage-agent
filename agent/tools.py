@@ -86,6 +86,64 @@ TOOLS = [
         }
     },
     {
+        "name": "submit_triage_result",
+        "description": (
+            "Sottomette la decisione finale di triage. "
+            "DEVE essere l'ultima chiamata, dopo classify_complaint, get_similar_cases, e opzionalmente route_ticket. "
+            "Usa i valori restituiti da classify_complaint — non reinventare la classificazione. "
+            "Se has_vulnerable_customer=true, scala final_priority di un livello (es. P4->P3). "
+            "Se category=emergenza_pericolo oppure confidence<0.5, imposta needs_human_review=true."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "final_category": {
+                    "type": "string",
+                    "enum": [
+                        "emergenza_pericolo", "guasto_interruzione", "qualita_fornitura",
+                        "reclamo_fattura", "contatore", "cambio_contratto",
+                        "nuovo_allaccio", "info_generale"
+                    ],
+                    "description": "Categoria finale del reclamo"
+                },
+                "final_priority": {
+                    "type": "string",
+                    "enum": ["P1", "P2", "P3", "P4", "P5"],
+                    "description": "Priorità finale, già aggiustata per cliente vulnerabile"
+                },
+                "confidence": {
+                    "type": "number",
+                    "description": "Confidence score 0.0-1.0 da classify_complaint"
+                },
+                "needs_human_review": {
+                    "type": "boolean",
+                    "description": "True se confidence<0.5 o categoria=emergenza_pericolo"
+                },
+                "human_review_reason": {
+                    "type": "string",
+                    "description": "Motivazione della revisione umana, stringa vuota se non necessaria"
+                },
+                "reasoning": {
+                    "type": "string",
+                    "description": "Sintesi della decisione e degli eventuali aggiustamenti"
+                },
+                "extracted_customer_id": {
+                    "type": ["string", "null"],
+                    "description": "customer_id estratto da classify_complaint, null se assente"
+                },
+                "has_vulnerable_customer": {
+                    "type": "boolean",
+                    "description": "True se il cliente è vulnerabile, da classify_complaint"
+                }
+            },
+            "required": [
+                "final_category", "final_priority", "confidence",
+                "needs_human_review", "human_review_reason", "reasoning",
+                "extracted_customer_id", "has_vulnerable_customer"
+            ]
+        }
+    },
+    {
         "name": "route_ticket",
         "description": (
             "Crea il ticket nel sistema e lo assegna all'ufficio destinatario. "
