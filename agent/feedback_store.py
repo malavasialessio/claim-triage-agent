@@ -9,7 +9,7 @@ from sqlmodel import Session, select, func
 from backend.models import FeedbackEntry, FewShotExample, Ticket, AccuracySnapshot
 from backend.database import engine
 
-REFRESH_THRESHOLD = 10  # ogni N override, rigenera i few-shot
+REFRESH_THRESHOLD = 1  # ogni override aggiorna subito i few-shot
 
 
 def save_override(

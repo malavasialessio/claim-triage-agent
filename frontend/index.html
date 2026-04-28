@@ -375,8 +375,12 @@ async function overrideTicket() {
     body: JSON.stringify({ human_category: category, human_priority: priority, operator_note: note })
   });
   closeModal();
+  loadInbox();
+  updateAccuracyBadge();
   if (result.few_shots_refreshed) {
-    showToast('Few-shot aggiornati! L\'agente ha appreso dai tuoi feedback.');
+    showToast('✓ Correzione salvata — few-shot aggiornati, l\'agente impara subito.');
+  } else {
+    showToast('✓ Correzione salvata.');
   }
   loadInbox(); updateAccuracyBadge();
 }
