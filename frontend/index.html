@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Claim Triage Agent</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .confidence-high   { background: #d1fae5; color: #065f46; }
+    .confidence-medium { background: #fef3c7; color: #92400e; }
+    .confidence-low    { background: #fee2e2; color: #991b1b; }
+    .priority-P1 { background:#ef4444; color:white; }
+    .priority-P2 { background:#f97316; color:white; }
+    .priority-P3 { background:#eab308; color:black; }
+    .priority-P4 { background:#3b82f6; color:white; }
+    .priority-P5 { background:#6b7280; color:white; }
+    .status-pending_review { border-left: 4px solid #3b82f6; }
+    .status-human_review   { border-left: 4px solid #f59e0b; }
+    .status-confirmed      { border-left: 4px solid #10b981; }
+    .status-overridden     { border-left: 4px solid #8b5cf6; }
+    .fade-in { animation: fadeIn .3s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+<!-- Header -->
+<header class="bg-white shadow-sm sticky top-0 z-10">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">CT</div>
+      <div>
+        <h1 class="text-lg font-bold text-gray-900">Claim Triage Agent</h1>
+        <p class="text-xs text-gray-500">Utility Elettrica — Self-Improving Triage System</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div id="accuracy-badge" class="text-sm font-semibold px-3 py-1 rounded-full bg-gray-100 text-gray-600">
+        Accuratezza: —
+      </div>
+      <span id="status-dot" class="w-2 h-2 rounded-full bg-gray-300"></span>
+    </div>
+  </div>
+</header>
+
+<!-- Navigation tabs -->
+<nav class="max-w-7xl mx-auto px-4 pt-4">
+  <div class="flex gap-1 border-b border-gray-200">
+    <button onclick="showTab('inbox')" id="tab-inbox" class="tab-btn active px-4 py-2 text-sm font-medium border-b-2 border-blue-600 text-blue-600">
+      Inbox <span id="badge-pending" class="ml-1 bg-blue-100 text-blue-700 text-xs px-1.5 py-0.5 rounded-full"></span>
+    </button>
+    <button onclick="showTab('all')" id="tab-all" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+      Tutti i Ticket
+    </button>
+    <button onclick="showTab('analytics')" id="tab-analytics" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+      Analytics
+    </button>
+    <button onclick="showTab('test')" id="tab-test" class="tab-btn px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+      Testa Email
+    </button>
+  </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4 py-6">
+
+  <!-- INBOX TAB -->
+  <div id="tab-content-inbox" class="tab-content">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-semibold text-gray-700">Da Revisionare</h2>
+      <button onclick="loadDataset()" class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">
+        Carica Dataset (50 email)
+      </button>
+    </div>
+    <div id="inbox-list" class="space-y-3"></div>
+    <div id="inbox-empty" class="hidden text-center py-12 text-gray-400">
+      <p class="text-lg">Nessun ticket in attesa</p>
+      <p class="text-sm mt-1">Carica il dataset o invia un'email dalla tab "Testa Email"</p>
+    </div>
+  </div>
+
+  <!-- ALL TICKETS TAB -->
+  <div id="tab-content-all" class="tab-content hidden">
+    <div class="mb-4 flex gap-2">
+      <select id="filter-status" onchange="loadAllTickets()" class="text-sm border border-gray-200 rounded-lg px-2 py-1.5">
+        <option value="">Tutti gli stati</option>
+        <option value="pending_review">Da revisionare</option>
+        <option value="human_review">Review obbligatoria</option>
+        <option value="confirmed">Confermati</option>
+        <option value="overridden">Corretti</option>
+      </select>
+      <select id="filter-category" onchange="loadAllTickets()" class="text-sm border border-gray-200 rounded-lg px-2 py-1.5">
+        <option value="">Tutte le categorie</option>
+        <option value="emergenza_pericolo">Emergenza / Pericolo</option>
+        <option value="guasto_interruzione">Guasto / Interruzione</option>
+        <option value="qualita_fornitura">Qualità Fornitura</option>
+        <option value="reclamo_fattura">Reclamo Fattura</option>
+        <option value="contatore">Contatore</option>
+        <option value="cambio_contratto">Cambio Contratto</option>
+        <option value="nuovo_allaccio">Nuovo Allaccio</option>
+        <option value="info_generale">Info Generale</option>
+      </select>
+    </div>
+    <div id="all-list" class="space-y-3"></div>
+  </div>
+
+  <!-- ANALYTICS TAB -->
+  <div id="tab-content-analytics" class="tab-content hidden">
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <div class="text-2xl font-bold text-gray-900" id="stat-total">—</div>
+        <div class="text-xs text-gray-500 mt-1">Ticket totali</div>
+      </div>
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <div class="text-2xl font-bold text-green-600" id="stat-accuracy">—</div>
+        <div class="text-xs text-gray-500 mt-1">Accuratezza agente</div>
+      </div>
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <div class="text-2xl font-bold text-purple-600" id="stat-feedback">—</div>
+        <div class="text-xs text-gray-500 mt-1">Feedback salvati</div>
+      </div>
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <div class="text-2xl font-bold text-blue-600" id="stat-pending">—</div>
+        <div class="text-xs text-gray-500 mt-1">In attesa review</div>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Accuratezza nel Tempo</h3>
+        <canvas id="accuracy-chart" height="200"></canvas>
+      </div>
+      <div class="bg-white rounded-xl p-4 shadow-sm">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Accuratezza per Categoria</h3>
+        <div id="category-stats" class="space-y-2"></div>
+      </div>
+    </div>
+    <div class="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+      <h3 class="text-sm font-semibold text-amber-800 mb-1">Self-Improving Loop</h3>
+      <p class="text-xs text-amber-700" id="few-shot-status">—</p>
+    </div>
+  </div>
+
+  <!-- TEST EMAIL TAB -->
+  <div id="tab-content-test" class="tab-content hidden">
+    <div class="max-w-2xl">
+      <h2 class="text-base font-semibold text-gray-700 mb-4">Invia Email all'Agente</h2>
+      <div class="bg-white rounded-xl shadow-sm p-4 space-y-3">
+        <div>
+          <label class="text-xs font-medium text-gray-500 mb-1 block">Oggetto</label>
+          <input id="test-subject" type="text" placeholder="es. Bolletta errata di novembre"
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-500 mb-1 block">Corpo Email</label>
+          <textarea id="test-body" rows="6" placeholder="Scrivi il corpo dell'email..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="testEmail()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
+            Processa Email
+          </button>
+          <button onclick="loadRandomExample()" class="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
+            Esempio Casuale
+          </button>
+        </div>
+      </div>
+      <div id="test-result" class="mt-4 hidden"></div>
+      <div id="test-loading" class="hidden mt-4 text-center py-8 text-gray-500 text-sm">
+        <div class="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+        Agente in elaborazione...
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Review Modal -->
+<div id="modal" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg fade-in">
+    <div class="p-5 border-b border-gray-100">
+      <h3 class="font-semibold text-gray-900">Revisione Ticket</h3>
+      <p class="text-xs text-gray-500 mt-0.5" id="modal-email-id"></p>
+    </div>
+    <div class="p-5 space-y-4">
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">Oggetto</label>
+        <p id="modal-subject" class="text-sm text-gray-800 font-medium"></p>
+      </div>
+      <div class="max-h-32 overflow-y-auto bg-gray-50 rounded-lg p-3">
+        <p id="modal-body" class="text-sm text-gray-700 whitespace-pre-wrap"></p>
+      </div>
+      <div class="bg-blue-50 rounded-lg p-3">
+        <p class="text-xs font-medium text-blue-700 mb-1">Decisione Agente</p>
+        <div class="flex gap-2 flex-wrap" id="modal-agent-decision"></div>
+        <p id="modal-reasoning" class="text-xs text-blue-600 mt-2"></p>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">Categoria</label>
+        <select id="modal-category" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="emergenza_pericolo">Emergenza / Pericolo</option>
+          <option value="guasto_interruzione">Guasto / Interruzione</option>
+          <option value="qualita_fornitura">Qualità Fornitura</option>
+          <option value="reclamo_fattura">Reclamo Fattura</option>
+          <option value="contatore">Contatore</option>
+          <option value="cambio_contratto">Cambio Contratto</option>
+          <option value="nuovo_allaccio">Nuovo Allaccio</option>
+          <option value="info_generale">Info Generale</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">Priorità</label>
+        <select id="modal-priority" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+          <option value="P1">P1 — Emergenza</option>
+          <option value="P2">P2 — Guasto attivo</option>
+          <option value="P3">P3 — Disagio significativo</option>
+          <option value="P4">P4 — Standard</option>
+          <option value="P5">P5 — Informativo</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 mb-1 block">Nota (alimenta il self-improving loop)</label>
+        <textarea id="modal-note" rows="2" placeholder="Perché hai cambiato la classificazione?"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+      </div>
+    </div>
+    <div class="p-5 border-t border-gray-100 flex gap-2 justify-end">
+      <button onclick="closeModal()" class="text-sm text-gray-500 px-4 py-2 rounded-lg hover:bg-gray-100">Annulla</button>
+      <button onclick="confirmTicket()" class="text-sm bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Conferma</button>
+      <button onclick="overrideTicket()" class="text-sm bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">Correggi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let currentTicketId = null;
+let accuracyChart = null;
+
+// ── Tab navigation ────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.tab-btn').forEach(el => {
+    el.classList.remove('border-blue-600', 'text-blue-600');
+    el.classList.add('border-transparent', 'text-gray-500');
+  });
+  document.getElementById(`tab-content-${name}`).classList.remove('hidden');
+  const btn = document.getElementById(`tab-${name}`);
+  btn.classList.remove('border-transparent', 'text-gray-500');
+  btn.classList.add('border-blue-600', 'text-blue-600');
+  if (name === 'inbox') loadInbox();
+  if (name === 'all') loadAllTickets();
+  if (name === 'analytics') loadAnalytics();
+}
+
+// ── API helpers ────────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, { headers: {'Content-Type':'application/json'}, ...opts });
+  return r.json();
+}
+
+// ── Inbox ─────────────────────────────────────────────────────────────────────
+async function loadInbox() {
+  const tickets = await api('/emails/pending');
+  const list = document.getElementById('inbox-list');
+  const empty = document.getElementById('inbox-empty');
+  document.getElementById('badge-pending').textContent = tickets.length || '';
+  if (!tickets.length) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  list.innerHTML = tickets.map(renderTicketCard).join('');
+  updateAccuracyBadge();
+}
+
+async function loadAllTickets() {
+  const tickets = await api('/tickets');
+  const statusFilter = document.getElementById('filter-status').value;
+  const catFilter = document.getElementById('filter-category').value;
+  const filtered = tickets.filter(t =>
+    (!statusFilter || t.status === statusFilter) &&
+    (!catFilter || t.agent.category === catFilter)
+  );
+  document.getElementById('all-list').innerHTML = filtered.map(renderTicketCard).join('');
+}
+
+function renderTicketCard(t) {
+  const conf = t.agent.confidence;
+  const confClass = conf >= 0.75 ? 'confidence-high' : conf >= 0.5 ? 'confidence-medium' : 'confidence-low';
+  const confPct = Math.round(conf * 100);
+  const isHumanReview = t.status === 'human_review';
+  const statusLabel = {
+    pending_review: 'Da revisionare',
+    human_review: 'Review obbligatoria',
+    confirmed: 'Confermato',
+    overridden: 'Corretto',
+  }[t.status] || t.status;
+
+  const override = t.status === 'overridden'
+    ? `<div class="mt-2 text-xs text-purple-700 bg-purple-50 rounded-lg px-2 py-1">
+        Corretto: ${t.human?.category} / ${t.human?.priority} — "${t.human?.note || ''}"
+       </div>` : '';
+
+  const actions = (t.status === 'pending_review' || t.status === 'human_review')
+    ? `<button onclick="openModal(${JSON.stringify(t).replace(/"/g, '&quot;')})"
+        class="text-xs ${isHumanReview ? 'bg-amber-500' : 'bg-blue-600'} text-white px-3 py-1 rounded-lg hover:opacity-90">
+        ${isHumanReview ? 'Revisione Obbligatoria' : 'Revisiona'}
+       </button>` : `<span class="text-xs text-gray-400">${statusLabel}</span>`;
+
+  return `
+  <div class="bg-white rounded-xl shadow-sm p-4 status-${t.status} fade-in">
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-mono text-gray-400">${t.email_id}</span>
+          ${t.agent.has_vulnerable_customer ? '<span class="text-xs bg-red-100 text-red-700 px-1.5 rounded-full">Cliente vulnerabile</span>' : ''}
+        </div>
+        <p class="text-sm font-semibold text-gray-900 truncate">${t.subject}</p>
+        <p class="text-xs text-gray-500 mt-0.5 line-clamp-2">${t.body?.substring(0, 120)}...</p>
+        <div class="flex flex-wrap items-center gap-2 mt-2">
+          <span class="text-xs px-2 py-0.5 rounded-full priority-${t.agent.priority}">${t.agent.priority}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">${t.agent.category?.replace(/_/g,' ')}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full ${confClass}">${confPct}% conf.</span>
+          <span class="text-xs text-gray-400">${t.agent.office}</span>
+          ${t.agent.retry_count > 0 ? `<span class="text-xs text-amber-600">retry:${t.agent.retry_count}</span>` : ''}
+        </div>
+        ${override}
+      </div>
+      <div class="flex-shrink-0">${actions}</div>
+    </div>
+  </div>`;
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal(ticket) {
+  currentTicketId = ticket.ticket_id;
+  document.getElementById('modal-email-id').textContent = ticket.email_id;
+  document.getElementById('modal-subject').textContent = ticket.subject;
+  document.getElementById('modal-body').textContent = ticket.body;
+  document.getElementById('modal-category').value = ticket.agent.category;
+  document.getElementById('modal-priority').value = ticket.agent.priority;
+  document.getElementById('modal-note').value = '';
+  document.getElementById('modal-agent-decision').innerHTML = `
+    <span class="text-xs px-2 py-0.5 rounded-full priority-${ticket.agent.priority}">${ticket.agent.priority}</span>
+    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">${ticket.agent.category?.replace(/_/g,' ')}</span>
+    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">${Math.round(ticket.agent.confidence*100)}% conf.</span>
+  `;
+  document.getElementById('modal-reasoning').textContent = ticket.agent.reasoning?.substring(0, 200) || '';
+  document.getElementById('modal').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('modal').classList.add('hidden'); currentTicketId = null; }
+
+async function confirmTicket() {
+  await api(`/tickets/${currentTicketId}/confirm`, { method: 'POST' });
+  closeModal(); loadInbox(); updateAccuracyBadge();
+}
+
+async function overrideTicket() {
+  const category = document.getElementById('modal-category').value;
+  const priority = document.getElementById('modal-priority').value;
+  const note = document.getElementById('modal-note').value;
+  const result = await api(`/tickets/${currentTicketId}/override`, {
+    method: 'POST',
+    body: JSON.stringify({ human_category: category, human_priority: priority, operator_note: note })
+  });
+  closeModal();
+  if (result.few_shots_refreshed) {
+    showToast('Few-shot aggiornati! L\'agente ha appreso dai tuoi feedback.');
+  }
+  loadInbox(); updateAccuracyBadge();
+}
+
+// ── Analytics ─────────────────────────────────────────────────────────────────
+async function loadAnalytics() {
+  const [summary, history, catStats] = await Promise.all([
+    api('/metrics/summary'), api('/metrics/accuracy'), api('/metrics/categories')
+  ]);
+  document.getElementById('stat-total').textContent = summary.total_tickets;
+  document.getElementById('stat-accuracy').textContent = summary.total_tickets > 0
+    ? `${Math.round(summary.accuracy_rate * 100)}%` : '—';
+  document.getElementById('stat-feedback').textContent = summary.total_feedback_entries;
+  document.getElementById('stat-pending').textContent = summary.pending_review;
+  document.getElementById('few-shot-status').textContent =
+    `${summary.total_feedback_entries} feedback raccolti. ` +
+    `Prossimo aggiornamento few-shot tra ${summary.few_shots_until_refresh} override.`;
+
+  // Accuracy chart
+  const ctx = document.getElementById('accuracy-chart').getContext('2d');
+  if (accuracyChart) accuracyChart.destroy();
+  if (history.length > 0) {
+    accuracyChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: history.map((h, i) => `T${i+1}`),
+        datasets: [{
+          label: 'Accuratezza',
+          data: history.map(h => Math.round(h.accuracy_rate * 100)),
+          borderColor: '#3b82f6', backgroundColor: '#eff6ff',
+          tension: 0.4, fill: true, pointRadius: 4,
+        }, {
+          label: 'Few-shot attivi',
+          data: history.map(h => h.few_shot_count * 5),
+          borderColor: '#8b5cf6', borderDash: [4,2],
+          tension: 0.4, pointRadius: 2,
+        }]
+      },
+      options: { responsive: true, scales: { y: { min: 0, max: 100 } }, plugins: { legend: { position: 'bottom' } } }
+    });
+  } else {
+    ctx.canvas.parentElement.innerHTML = '<p class="text-xs text-gray-400 text-center py-8">Revisiona qualche ticket per vedere il grafico</p>';
+  }
+
+  // Category stats
+  const catDiv = document.getElementById('category-stats');
+  catDiv.innerHTML = Object.entries(catStats).map(([cat, s]) => {
+    const pct = s.accuracy != null ? Math.round(s.accuracy * 100) : null;
+    const bar = pct != null ? `<div class="flex items-center gap-2">
+      <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+        <div class="h-1.5 rounded-full ${pct > 80 ? 'bg-green-500' : pct > 60 ? 'bg-yellow-500' : 'bg-red-500'}"
+          style="width:${pct}%"></div>
+      </div>
+      <span class="text-xs text-gray-500 w-8">${pct}%</span>
+    </div>` : '<span class="text-xs text-gray-400">Nessun dato</span>';
+    return `<div><p class="text-xs text-gray-600 mb-0.5">${cat.replace(/_/g,' ')} (${s.total})</p>${bar}</div>`;
+  }).join('');
+}
+
+async function updateAccuracyBadge() {
+  const summary = await api('/metrics/summary');
+  const badge = document.getElementById('accuracy-badge');
+  const pct = summary.total_tickets > 0 ? Math.round(summary.accuracy_rate * 100) : null;
+  badge.textContent = pct != null ? `Accuratezza: ${pct}%` : 'Accuratezza: —';
+  badge.className = `text-sm font-semibold px-3 py-1 rounded-full ${
+    pct == null ? 'bg-gray-100 text-gray-600' :
+    pct > 80 ? 'bg-green-100 text-green-700' :
+    pct > 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+  }`;
+  document.getElementById('status-dot').className = `w-2 h-2 rounded-full ${pct != null ? 'bg-green-500' : 'bg-gray-300'}`;
+}
+
+// ── Test email ─────────────────────────────────────────────────────────────────
+async function testEmail() {
+  const subject = document.getElementById('test-subject').value.trim();
+  const body = document.getElementById('test-body').value.trim();
+  if (!subject || !body) { alert('Inserisci oggetto e corpo'); return; }
+  document.getElementById('test-result').classList.add('hidden');
+  document.getElementById('test-loading').classList.remove('hidden');
+  const emailId = `test_${Date.now()}`;
+  try {
+    const result = await api('/emails/process', {
+      method: 'POST',
+      body: JSON.stringify({ email_id: emailId, subject, body })
+    });
+    document.getElementById('test-loading').classList.add('hidden');
+    const confPct = Math.round(result.agent_decision.confidence * 100);
+    const confClass = result.agent_decision.confidence >= 0.75 ? 'confidence-high' :
+                      result.agent_decision.confidence >= 0.5 ? 'confidence-medium' : 'confidence-low';
+    document.getElementById('test-result').innerHTML = `
+      <div class="bg-white rounded-xl shadow-sm p-4 fade-in">
+        <p class="text-xs font-medium text-gray-500 mb-3">Risultato Triage</p>
+        <div class="flex flex-wrap gap-2 mb-3">
+          <span class="text-sm px-2.5 py-1 rounded-full priority-${result.agent_decision.priority}">${result.agent_decision.priority}</span>
+          <span class="text-sm px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">${result.agent_decision.category?.replace(/_/g,' ')}</span>
+          <span class="text-sm px-2.5 py-1 rounded-full ${confClass}">${confPct}% confidence</span>
+        </div>
+        <p class="text-sm text-gray-600"><strong>Ufficio:</strong> ${result.agent_decision.office}</p>
+        ${result.needs_human_review ? `<div class="mt-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">Human review richiesta: ${result.human_review_reason || ''}</div>` : ''}
+        ${result.retry_count > 0 ? `<p class="text-xs text-gray-400 mt-2">Retry: ${result.retry_count}</p>` : ''}
+        <button onclick="showTab('inbox')" class="mt-3 text-xs text-blue-600 hover:underline">Vai all'inbox per revisionare</button>
+      </div>`;
+    document.getElementById('test-result').classList.remove('hidden');
+  } catch(e) {
+    document.getElementById('test-loading').classList.add('hidden');
+    document.getElementById('test-result').innerHTML = `<div class="bg-red-50 text-red-700 rounded-xl p-4 text-sm">${e.message}</div>`;
+    document.getElementById('test-result').classList.remove('hidden');
+  }
+}
+
+async function loadRandomExample() {
+  try {
+    const r = await fetch('../data/emails_golden.json');
+    const emails = await r.json();
+    const e = emails[Math.floor(Math.random() * emails.length)];
+    document.getElementById('test-subject').value = e.subject;
+    document.getElementById('test-body').value = e.body;
+  } catch {
+    document.getElementById('test-subject').value = 'Luce mancante da ieri sera';
+    document.getElementById('test-body').value = 'Buonasera, ieri sera intorno alle 20:00 è andata via la luce in tutto il palazzo. I vicini mi dicono che è lo stesso per tutta la via. Quando tornerà la corrente? Ho un figlio piccolo e fa molto freddo. Codice cliente: CLI-445821';
+  }
+}
+
+async function loadDataset() {
+  const r = await api('/dataset/load', { method: 'POST', body: JSON.stringify({ limit: 50 }) });
+  showToast(`${r.loaded} email caricate nel sistema`);
+  loadInbox();
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'fixed bottom-4 right-4 bg-gray-900 text-white text-sm px-4 py-2 rounded-xl shadow-lg fade-in z-50';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+showTab('inbox');
+</script>
+</body>
+</html>
